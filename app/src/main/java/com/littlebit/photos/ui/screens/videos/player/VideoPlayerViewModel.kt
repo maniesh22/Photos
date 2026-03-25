@@ -9,27 +9,27 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.littlebit.photos.ui.screens.audio.player.PlaybackState
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 
-
-class VideoPlayerViewModel : ViewModel() {
+@HiltViewModel
+class VideoPlayerViewModel @Inject constructor() : ViewModel() {
     private val _playbackState: MutableStateFlow<PlaybackState> =
-        MutableStateFlow(PlaybackState.IDLE)
+            MutableStateFlow(PlaybackState.IDLE)
     private val _playbackPosition: MutableStateFlow<Long> = MutableStateFlow(0L)
     private val player: MutableStateFlow<Player?> = MutableStateFlow(null)
     val playbackState = _playbackState
 
-    fun initialisePlayer(context: Context){
+    fun initialisePlayer(context: Context) {
         player.value = ExoPlayer.Builder(context).build()
     }
-
 
     fun releasePlayer() {
         try {
             player.value?.release()
             _playbackState.value = PlaybackState.IDLE
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
@@ -37,8 +37,7 @@ class VideoPlayerViewModel : ViewModel() {
     fun setPlayWhenReady(playWhenReady: Boolean) {
         try {
             player.value?.playWhenReady = playWhenReady
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
@@ -46,12 +45,11 @@ class VideoPlayerViewModel : ViewModel() {
     fun setMediaItems(uris: List<Uri?>, startIndex: Int, playbackPosition: Long) {
         try {
             player.value?.setMediaItems(
-                uris.map { uri -> MediaItem.fromUri(uri!!) },
-                startIndex,
-                playbackPosition
+                    uris.map { uri -> MediaItem.fromUri(uri!!) },
+                    startIndex,
+                    playbackPosition
             )
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
@@ -61,7 +59,6 @@ class VideoPlayerViewModel : ViewModel() {
         player.value?.release()
         Log.d("CLEARED", "onCleared:")
     }
-
 
     fun setPlayer(playerView: PlayerView) {
         playerView.player = player.value
@@ -76,35 +73,27 @@ class VideoPlayerViewModel : ViewModel() {
         Log.d("SAVED", "safePlayBackPosition: ${_playbackPosition.value}")
     }
 
-
     fun isPlayerNull(): Boolean {
         return player.value == null
     }
 
-    fun resume(){
+    fun resume() {
         try {
-            if(player.value != null){
+            if (player.value != null) {
                 player.value?.play()
             }
-        }
-        catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     fun pause() {
         try {
-            if(player.value != null){
+            if (player.value != null) {
                 player.value?.pause()
             }
-        }
-        catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 }
-
-
-
-
-

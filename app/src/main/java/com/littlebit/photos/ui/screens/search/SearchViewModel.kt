@@ -1,73 +1,76 @@
 package com.littlebit.photos.ui.screens.search
 
 import androidx.lifecycle.ViewModel
+import com.littlebit.photos.model.AudioItem
+import com.littlebit.photos.model.ImageGroup
 import com.littlebit.photos.model.SearchItem
-import com.littlebit.photos.ui.screens.audio.AudioViewModel
-import com.littlebit.photos.ui.screens.images.PhotosViewModel
-import com.littlebit.photos.ui.screens.videos.VideoViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.littlebit.photos.model.VideoGroup
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class SearchViewModel : ViewModel() {
+@HiltViewModel
+class SearchViewModel @Inject constructor() : ViewModel() {
 
+    /**
+     * Searches across images, videos, and audio by display name. Accepts data lists directly
+     * instead of ViewModel references to reduce coupling.
+     */
     fun getSearchItems(
-        photosViewModel: PhotosViewModel,
-        videoViewModel: VideoViewModel,
-        audioViewModel: AudioViewModel,
-        inputText: String
+            imageGroups: List<ImageGroup>,
+            videoGroups: List<VideoGroup>,
+            audioList: List<AudioItem>,
+            query: String
     ): List<SearchItem> {
+        if (query.isBlank()) return emptyList()
 
-        val searchItems = MutableStateFlow(mutableListOf<SearchItem>())
-        val photos = photosViewModel.photoGroups.value
-        val videos = videoViewModel.videoGroups.value
-        val audios = audioViewModel.audioList.value
-        photos.forEachIndexed { listIndex, imageGroup ->
-            imageGroup.images.forEachIndexed { index, photoItem ->
-                if (photoItem.displayName.contains(inputText.trim(), ignoreCase = true)){
-                    searchItems.value.add(
-                        SearchItem(
-                            photoItem.displayName.trim(),
-                            "image",
-                            photoItem.uri,
-                            photoItem = photoItem,
-                            listIndex = listIndex,
-                            index = index
-                        )
+        val lowerQuery = query.lowercase()
+        val result = mutableListOf<SearchItem>()
+
+        imageGroups.forEachIndexed { listIndex, group ->
+            group.images.forEachIndexed { index, photoItem ->
+                if (photoItem.displayName.lowercase().contains(lowerQuery)) {
+                    result.add(
+                            SearchItem(
+                                    title = photoItem.displayName,
+                                    type = "image",
+                                    url = photoItem.uri,
+                                    listIndex = listIndex,
+                                    index = index
+                            )
                     )
                 }
             }
         }
-        videos.forEachIndexed { listIndex, videoGroup ->
-            videoGroup.videos.forEachIndexed { index, videoItem ->
-                if(videoItem.displayName.contains(inputText.trim(), ignoreCase = true)) {
-                    searchItems.value.add(
-                        SearchItem(
-                            videoItem.displayName.trim(),
-                            "video",
-                            videoItem.uri,
-                            videoItem = videoItem,
-                            listIndex = listIndex,
-                            index = index
-                        )
+
+        videoGroups.forEachIndexed { listIndex, group ->
+            group.videos.forEachIndexed { index, videoItem ->
+                if (videoItem.displayName.lowercase().contains(lowerQuery)) {
+                    result.add(
+                            SearchItem(
+                                    title = videoItem.displayName,
+                                    type = "video",
+                                    url = videoItem.uri,
+                                    listIndex = listIndex,
+                                    index = index
+                            )
                     )
                 }
             }
         }
-        audios.forEachIndexed { index, audioItem ->
-            if(audioItem.displayName.contains(inputText.trim(), ignoreCase = true)) {
-                searchItems.value.add(
-                    SearchItem(
-                        audioItem.displayName.trim(),
-                        "audio",
-                        audioItem.uri,
-                        audioItem = audioItem,
-                        index = index
-                    )
+
+        audioList.forEachIndexed { index, audioItem ->
+            if (audioItem.displayName.lowercase().contains(lowerQuery)) {
+                result.add(
+                        SearchItem(
+                                title = audioItem.displayName,
+                                type = "audio",
+                                url = audioItem.uri,
+                                index = index
+                        )
                 )
             }
         }
-        return searchItems.value
+
+        return result
     }
-
-
-
 }

@@ -23,20 +23,15 @@ import com.littlebit.photos.model.ImageGroup
 import com.littlebit.photos.model.PhotoItem
 import com.littlebit.photos.model.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.Executors
-import javax.inject.Inject
-
 
 @HiltViewModel
-class PhotosViewModel @Inject constructor(
-    private val mediaRepository: MediaRepository
-) : ViewModel() {
+class PhotosViewModel @Inject constructor(private val mediaRepository: MediaRepository) :
+        ViewModel() {
     private val _photos = MutableStateFlow(mutableListOf<PhotoItem>())
     private val _photoGroups = MutableStateFlow(mutableListOf<ImageGroup>())
     val isLoading = MutableStateFlow(false)
@@ -45,18 +40,12 @@ class PhotosViewModel @Inject constructor(
     val selectedImages = MutableStateFlow(0)
     val selectedImageList = MutableStateFlow(hashMapOf<Long, Pair<Int, Int>>())
 
-    private val customDispatcher: ExecutorCoroutineDispatcher =
-        Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    private val addImageGroupDispatcher: ExecutorCoroutineDispatcher =
-        Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
     private fun loadMedia(context: Context) {
         Log.d("PHOTOS_VIEW_MODEL", "addPhotosGroupedByDate: Inside LOAD_MEDIA")
         try {
-            viewModelScope.launch(Dispatchers.Default) {
-                val media = withContext(customDispatcher) {
-                    mediaRepository.getImagesGroupedByDate(context.contentResolver, isLoading)
-                }
+            viewModelScope.launch(Dispatchers.IO) {
+                val media =
+                        mediaRepository.getImagesGroupedByDate(context.contentResolver, isLoading)
                 _photoGroups.value = media.first
                 photos.value = media.second
             }
@@ -67,24 +56,15 @@ class PhotosViewModel @Inject constructor(
 
     fun addPhotosGroupedByDate(context: Context) {
         Log.d("PHOTOS_VIEW_MODEL", "addPhotosGroupedByDate: Inside ADD_PHOTOS")
-        viewModelScope.launch(Dispatchers.Default) {
-            withContext(addImageGroupDispatcher) {
-                mediaRepository.addImagesGroupedByDate(
+        viewModelScope.launch(Dispatchers.IO) {
+            mediaRepository.addImagesGroupedByDate(
                     context.contentResolver,
                     _photoGroups,
                     _photos,
                     isLoading
-                )
-            }
+            )
         }
     }
-
-    override fun onCleared() {
-        super.onCleared()
-        customDispatcher.close()
-        addImageGroupDispatcher.close()
-    }
-
 
     fun removeImageFromGrid(listGroupIndex: Int, imageIndex: MutableIntState) {
         viewModelScope.launch(Dispatchers.Default) {
@@ -108,26 +88,19 @@ class PhotosViewModel @Inject constructor(
 
     fun refresh(context: Context) = loadMedia(context)
 
-
-    fun markImages(
-        imageGroup: ImageGroup,
-        listIndex: Int
-    ) {
+    fun markImages(imageGroup: ImageGroup, listIndex: Int) {
         viewModelScope.launch(Dispatchers.Default) {
             var markedAll = true
 
-            // Use anyMatch to check if at least one item is not marked
             if (imageGroup.images.any { !it.isSelected }) {
                 markedAll = false
             }
 
             imageGroup.images.forEachIndexed { index, photoItem ->
                 if (markedAll) {
-                    // Unmarked images if all were marked
                     photoItem.isSelected = false
                     selectedImageList.value.remove(photoItem.id)
                 } else {
-                    // Mark images if not all were marked
                     if (!photoItem.isSelected) {
                         photoItem.isSelected = true
                         selectedImageList.value[photoItem.id] = Pair(listIndex, index)
@@ -166,74 +139,68 @@ class PhotosViewModel @Inject constructor(
 
     private fun getSelectedImages(): List<Uri?> {
 
-        val list = selectedImageList.value.values.map { pair ->
-            val listIndex = pair.first
-            val imageIndex = pair.second
-            val uri = _photoGroups.value[listIndex].images[imageIndex].uri
-            uri
-        }
+        val list =
+                selectedImageList.value.values.map { pair ->
+                    val listIndex = pair.first
+                    val imageIndex = pair.second
+                    val uri = _photoGroups.value[listIndex].images[imageIndex].uri
+                    uri
+                }
         return list
     }
 
     fun moveToTrashSelectedImages(
-        context: Context,
-        trashLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
+            context: Context,
+            trashLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
     ) {
         val contentResolver = context.contentResolver
         viewModelScope.launch(Dispatchers.Default) {
             val selectedImages = getSelectedImages()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val intentSender = MediaStore.createTrashRequest(
-                    contentResolver,
-                    selectedImages,
-                    true
-                ).intentSender
-                trashLauncher.launch(
-                    intentSender.let { IntentSenderRequest.Builder(it).build() }
-                )
+                val intentSender =
+                        MediaStore.createTrashRequest(contentResolver, selectedImages, true)
+                                .intentSender
+                trashLauncher.launch(intentSender.let { IntentSenderRequest.Builder(it).build() })
             }
         }
     }
 
-
     fun shareImage(
-        listIndex: Int,
-        imageIndex: Int,
-        shareLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>
+            listIndex: Int,
+            imageIndex: Int,
+            shareLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>
     ) {
         val shareIntent = Intent(Intent.ACTION_SEND)
         shareIntent.type = "image/*"
         shareIntent.putExtra(
-            Intent.EXTRA_STREAM,
-            _photoGroups.value[listIndex].images[imageIndex].uri
+                Intent.EXTRA_STREAM,
+                _photoGroups.value[listIndex].images[imageIndex].uri
         )
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         shareLauncher.launch(Intent.createChooser(shareIntent, "Share Photo"))
     }
 
-
     fun moveToTrash(
-        context: Context,
-        listIndex: Int,
-        imageIndex: Int,
-        trashLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
-        showDeleteDialog: MutableState<Boolean>
+            context: Context,
+            listIndex: Int,
+            imageIndex: Int,
+            trashLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
+            showDeleteDialog: MutableState<Boolean>
     ) {
         try {
             val contentResolver = context.contentResolver
             val selectedImages = mutableListOf<Uri>()
             _photoGroups.value[listIndex].images[imageIndex].uri?.let { selectedImages.add(it) }
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && Build.VERSION.SDK_INT < Build.VERSION_CODES.R)) {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P ||
+                            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                    Build.VERSION.SDK_INT < Build.VERSION_CODES.R)
+            ) {
                 showDeleteDialog.value = true
             } else {
-                val intentSender = MediaStore.createTrashRequest(
-                    contentResolver,
-                    selectedImages,
-                    true
-                ).intentSender
-                trashLauncher.launch(
-                    intentSender.let { IntentSenderRequest.Builder(it).build() }
-                )
+                val intentSender =
+                        MediaStore.createTrashRequest(contentResolver, selectedImages, true)
+                                .intentSender
+                trashLauncher.launch(intentSender.let { IntentSenderRequest.Builder(it).build() })
             }
         } catch (exception: Exception) {
             exception.printStackTrace()
@@ -255,17 +222,25 @@ class PhotosViewModel @Inject constructor(
                 val listIndex = item.key
                 if (photoGroups.value.size > listIndex) {
                     val filteredList =
-                        photoGroups.value[listIndex].images.filterIndexed { index, _ -> index !in indicesToRemove }
+                            photoGroups.value[listIndex].images.filterIndexed { index, _ ->
+                                index !in indicesToRemove
+                            }
                     photoGroups.value[listIndex].images.clear()
                     photoGroups.value[listIndex].images.addAll(filteredList)
                 }
             }
             photoGroups.value =
-                photoGroups.value.filterIndexed { _, item -> item.images.size != 0 }.toMutableList()
+                    photoGroups
+                            .value
+                            .filterIndexed { _, item -> item.images.size != 0 }
+                            .toMutableList()
             selectedImageList.value.clear()
             selectedImages.value = 0
+            // FIX: Toast must be called on Main thread
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
         }
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     fun deletePhoto(listIndex: Int, imageIndex: MutableIntState, context: Context) {
@@ -274,9 +249,9 @@ class PhotosViewModel @Inject constructor(
 
         if (uri != null) {
             if (ActivityCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
+                            context,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
             ) {
                 try {
                     contentResolver?.delete(uri, null, null)
@@ -293,11 +268,10 @@ class PhotosViewModel @Inject constructor(
                     Log.d("PERMISSION", "deletePhoto: Not Deleted")
                 }
             } else {
-                // Request the WRITE_EXTERNAL_STORAGE permission from the user.
                 ActivityCompat.requestPermissions(
-                    context as Activity,
-                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                    1001
+                        context as Activity,
+                        arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                        1001
                 )
                 Log.d("PERMISSION", "deletePhoto: Permission not granted")
             }
@@ -305,21 +279,20 @@ class PhotosViewModel @Inject constructor(
     }
 
     fun getData(applicationContext: Context) {
-        // if permission is granted, load media
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(
-                    applicationContext,
-                    Manifest.permission.READ_MEDIA_IMAGES
-                ) == PackageManager.PERMISSION_GRANTED
+                            applicationContext,
+                            Manifest.permission.READ_MEDIA_IMAGES
+                    ) == PackageManager.PERMISSION_GRANTED
             ) {
                 if (_photoGroups.value.isEmpty()) addPhotosGroupedByDate(applicationContext)
                 else loadMedia(applicationContext)
             }
         } else {
             if (ActivityCompat.checkSelfPermission(
-                    applicationContext,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
+                            applicationContext,
+                            Manifest.permission.READ_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
             ) {
                 if (_photoGroups.value.isEmpty()) addPhotosGroupedByDate(applicationContext)
                 else loadMedia(applicationContext)
@@ -335,17 +308,11 @@ class PhotosViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val selectedImages = getSelectedImages()
-                selectedImages.forEach { uri ->
-                    context.contentResolver.delete(uri!!, null, null)
-                }
+                selectedImages.forEach { uri -> context.contentResolver.delete(uri!!, null, null) }
             } catch (exception: Exception) {
                 exception.printStackTrace()
             }
         }
         removeImagesFromList(context, "Deleted")
     }
-
 }
-
-
-

@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import com.bumptech.glide.integration.compose.CrossFade
+
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.littlebit.photos.model.VideoGroup
@@ -217,7 +217,7 @@ fun VideoGridItem(
                             }
                         )
                     },
-                transition = CrossFade
+
             )
             Row(
                 Modifier

@@ -45,7 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,84 +57,87 @@ import com.littlebit.photos.ui.navigation.Screens
 @SuppressLint("SourceLockedOrientationActivity")
 @Composable
 fun LoginScreen(navHostController: NavHostController) {
-    val mainActivity = LocalContext.current as MainActivity
+    val mainActivity = androidx.activity.compose.LocalActivity.current as MainActivity
     val statusBarHeight = WindowInsets.statusBars.getTop(LocalDensity.current)
-    val activity = LocalContext.current as ComponentActivity
+    val activity = androidx.activity.compose.LocalActivity.current as ComponentActivity
     var initialOrientation by remember { mutableIntStateOf(activity.requestedOrientation) }
     LaunchedEffect(Unit) {
         initialOrientation = activity.requestedOrientation
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     }
-    DisposableEffect(Unit) {
-        onDispose {
-            activity.requestedOrientation = initialOrientation
-        }
-    }
+    DisposableEffect(Unit) { onDispose { activity.requestedOrientation = initialOrientation } }
 
     Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()), horizontalAlignment =  Alignment.CenterHorizontally) {
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.35f)
-                .clip(RoundedCornerShape(bottomEnd = 100.dp, bottomStart = 0.dp))
-                .background(Color.Blue.copy(0.5f)),
-            contentAlignment = Alignment.Center
-
+                modifier =
+                        Modifier.fillMaxWidth()
+                                .fillMaxHeight(0.35f)
+                                .clip(RoundedCornerShape(bottomEnd = 100.dp, bottomStart = 0.dp))
+                                .background(Color.Blue.copy(0.5f)),
+                contentAlignment = Alignment.Center
         ) {
             AsyncImage(
-                model = R.drawable.login_vector,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(top = statusBarHeight.dp)
-                    .fillMaxSize(0.5f)
+                    model = R.drawable.login_vector,
+                    contentDescription = null,
+                    modifier = Modifier.padding(top = statusBarHeight.dp).fillMaxSize(0.5f)
             )
         }
         Spacer(Modifier.height(20.dp))
         Text(
-            text = "Welcome back!",
-            fontSize = 24.sp,
-            letterSpacing = 4.sp,
-            fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
-            fontStyle = MaterialTheme.typography.titleMedium.fontStyle
+                text = "Welcome back!",
+                fontSize = 24.sp,
+                letterSpacing = 4.sp,
+                fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
+                fontStyle = MaterialTheme.typography.titleMedium.fontStyle
         )
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "Email") },
-            leadingIcon = { Icon(imageVector = Icons.Outlined.Email, contentDescription = "Email Icon") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "Email") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Outlined.Email, contentDescription = "Email Icon")
+                },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "Password") },
-            leadingIcon = { Icon(imageVector = Icons.Outlined.Lock, contentDescription = "Password Icon") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "Password") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Outlined.Lock, contentDescription = "Password Icon")
+                },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         ElevatedButton(
-            onClick = {},
-            modifier = Modifier.fillMaxWidth(0.7f),
-            colors = ButtonDefaults.buttonColors().copy(containerColor = Color.Blue.copy(0.5f)),
-        ) {
-            Text("Login")
-        }
+                onClick = {},
+                modifier = Modifier.fillMaxWidth(0.7f),
+                colors = ButtonDefaults.buttonColors().copy(containerColor = Color.Blue.copy(0.5f)),
+        ) { Text("Login") }
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             HorizontalDivider(Modifier.width(120.dp))
-            Text("Or", modifier = Modifier.padding(start = 20.dp, end = 20.dp), color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
+            Text(
+                    "Or",
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(0.6f)
+            )
             HorizontalDivider(Modifier.width(120.dp))
         }
         Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            /*************** To be Added ****************/
+        Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+        ) {
+            /** ************* To be Added */
             /*
             IconButton({}) {
                 AsyncImage(
@@ -145,28 +147,26 @@ fun LoginScreen(navHostController: NavHostController) {
                 )
             }
             */
-            IconButton({
-                mainActivity.signInWithGoogle()
-            }) {
+            IconButton({ mainActivity.signInWithGoogle() }) {
                 AsyncImage(
-                    model = R.drawable.icon_google,
-                    contentDescription = "Google Icon",
-                    modifier = Modifier.size(40.dp)
+                        model = R.drawable.icon_google,
+                        contentDescription = "Google Icon",
+                        modifier = Modifier.size(40.dp)
                 )
             }
         }
         Spacer(Modifier.height(40.dp))
         Text(
-            text = "Don't have any account? Signup",
-            letterSpacing = 1.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(0.7f),
-            modifier = Modifier.clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = { navHostController.navigate(Screens.SignUpScreen.route) }
-            )
+                text = "Don't have any account? Signup",
+                letterSpacing = 1.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(0.7f),
+                modifier =
+                        Modifier.clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = { navHostController.navigate(Screens.SignUpScreen.route) }
+                        )
         )
         Spacer(Modifier.height(20.dp))
     }
-
 }

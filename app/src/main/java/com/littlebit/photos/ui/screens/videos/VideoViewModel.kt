@@ -19,201 +19,124 @@ import com.littlebit.photos.model.VideoGroup
 import com.littlebit.photos.model.VideoItem
 import com.littlebit.photos.model.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.Executors
-import javax.inject.Inject
-
 
 @HiltViewModel
-class VideoViewModel @Inject constructor(
-    private val repository: MediaRepository
-) : ViewModel() {
-    private val selectedVideoList = MutableStateFlow(hashMapOf<Long, Pair<Int, Int>>())
-    val videos = MutableStateFlow(mutableListOf<VideoItem>())
-    val videoGroups = MutableStateFlow(mutableListOf<VideoGroup>())
-    val isLoading = MutableStateFlow(true)
+class VideoViewModel @Inject constructor(private val repository: MediaRepository) : ViewModel() {
+
+    private val _videoList = MutableStateFlow(mutableListOf<VideoItem>())
+    val videoList = _videoList
+    private val _videoGroups = MutableStateFlow(mutableListOf<VideoGroup>())
+    val videoGroups = _videoGroups
+    val isLoading = MutableStateFlow(false)
+    val selectedVideoList = MutableStateFlow(hashMapOf<Long, Pair<Int, Int>>())
     val selectedVideos = MutableStateFlow(0)
 
-
-    private val addVideoDispatcher: ExecutorCoroutineDispatcher =
-        Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    private val loadVideoDispatcher: ExecutorCoroutineDispatcher =
-        Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
-
-    fun addVideosGroupedByDate(context: Context) {
-        viewModelScope.launch(Dispatchers.Default) {
-            withContext(addVideoDispatcher) {
-                repository.addVideosGroupedByDate(
-                    videoGroups,
-                    videos,
-                    isLoading,
-                    context
-                )
-            }
-        }
-    }
-
     private fun loadVideos(context: Context) {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                withContext(loadVideoDispatcher) {
-                    val result = repository.loadVideos(context, isLoading)
-                    videos.value = result.first
-                    videoGroups.value = result.second
-                }
+                val result = repository.loadVideos(context, isLoading)
+                _videoList.value = result.first
+                _videoGroups.value = result.second
             } catch (e: Exception) {
-                // Handle exceptions here
                 e.printStackTrace()
             }
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        // Close the custom dispatcher to release resources
-        addVideoDispatcher.close()
-        loadVideoDispatcher.close()
-    }
-
-
-    fun refreshVideos(context: Context) {
-        loadVideos(context)
-    }
-
-
-    fun selectVideo(videoId: Long, listIndex: Int, videoIndex: Int) {
-        if (selectedVideoList.value.containsKey(videoId)) {
-            selectedVideoList.value.remove(videoId)
-            videoGroups.value[listIndex].videos[videoIndex].isSelected = false
-            selectedVideos.value--
-        } else {
-            selectedVideoList.value[videoId] = Pair(listIndex, videoIndex)
-            videoGroups.value[listIndex].videos[videoIndex].isSelected = true
-            selectedVideos.value++
+    fun addVideosGroupedByDate(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.addVideosGroupedByDate(_videoGroups, _videoList, isLoading, context)
         }
-        Log.d(
-            "LIST_VIDEO",
-            "selectVideo: ${selectedVideoList.value.size} || ${selectedVideos.value}"
-        )
     }
 
-    fun selectAllVideos(videoGroup: VideoGroup, listIndex: Int) {
+    fun refreshVideos(context: Context) = loadVideos(context)
+
+    fun selectVideo(id: Long, listIndex: Int, videoIndex: Int) {
+        viewModelScope.launch(Dispatchers.Default) {
+            if (selectedVideoList.value.containsKey(id)) {
+                selectedVideoList.value.remove(id)
+                _videoGroups.value[listIndex].videos[videoIndex].isSelected = false
+                selectedVideos.value--
+            } else {
+                selectedVideoList.value[id] = Pair(listIndex, videoIndex)
+                _videoGroups.value[listIndex].videos[videoIndex].isSelected = true
+                selectedVideos.value++
+            }
+            Log.d("SELECTION", "selectVideo: ${selectedVideoList.value.size}")
+        }
+    }
+
+    fun selectAllVideos(group: VideoGroup, listIndex: Int) {
         viewModelScope.launch(Dispatchers.Default) {
             var markedAll = true
-            // Use anyMatch to check if at least one item is not marked
-            if (videoGroup.videos.any { !it.isSelected }) {
+            if (group.videos.any { !it.isSelected }) {
                 markedAll = false
             }
-            videoGroup.videos.forEachIndexed { index, videoItem ->
+            group.videos.forEachIndexed { index, videoItem ->
                 if (markedAll) {
                     videoItem.isSelected = false
                     selectedVideoList.value.remove(videoItem.id)
+                    selectedVideos.value--
                 } else {
                     if (!videoItem.isSelected) {
                         videoItem.isSelected = true
                         selectedVideoList.value[videoItem.id] = Pair(listIndex, index)
+                        selectedVideos.value++
                     }
                 }
             }
-            selectedVideos.value = selectedVideoList.value.size
-            Log.d(
-                "LIST_VIDEO",
-                "selectAllVideos: ${selectedVideoList.value.size} || ${selectedVideos.value}"
-            )
         }
     }
 
     fun unSelectAllVideos() {
         viewModelScope.launch(Dispatchers.Default) {
             selectedVideoList.value.forEach { (_, pair) ->
-                val listIndex = pair.first
-                val videoIndex = pair.second
-                videoGroups.value[listIndex].videos[videoIndex].isSelected = false
+                _videoGroups.value[pair.first].videos[pair.second].isSelected = false
             }
-            selectedVideos.value = 0
             selectedVideoList.value.clear()
-
-            Log.d(
-                "LIST_VIDEO",
-                "unSelectAllVideos: ${selectedVideoList.value.size} || ${selectedVideos.value}"
-            )
+            selectedVideos.value = 0
         }
     }
 
     fun getSelectedMemorySize(context: Context): String {
         var totalSize = 0L
-        selectedVideoList.value.forEach {
-            val listIndex = it.value.first
-            val videoIndex = it.value.second
-            try {
-                totalSize += videoGroups.value[listIndex].videos[videoIndex].size
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        selectedVideoList.value.forEach { (_, pair) ->
+            totalSize += _videoGroups.value[pair.first].videos[pair.second].size
         }
         return formatFileSize(context, totalSize)
     }
 
     fun shareSelectedVideos(): Intent {
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND_MULTIPLE
-            putParcelableArrayListExtra(
-                Intent.EXTRA_STREAM,
-                ArrayList(selectedVideoList.value.map { (_, pair) ->
-                    val listIndex = pair.first
-                    val videoIndex = pair.second
-                    videoGroups.value[listIndex].videos[videoIndex].uri
-                })
-            )
-            type = "video/*"
+        val shareIntent = Intent(Intent.ACTION_SEND_MULTIPLE)
+        shareIntent.type = "video/*"
+        val selectedUris = ArrayList<Uri>()
+        selectedVideoList.value.forEach { (_, pair) ->
+            _videoGroups.value[pair.first].videos[pair.second].uri?.let { selectedUris.add(it) }
         }
-        return Intent.createChooser(shareIntent, "Share Videos")
-    }
-
-    private fun getSelectedVideos(): List<Uri?> {
-
-        val list = selectedVideoList.value.values.map { pair ->
-            val listIndex = pair.first
-            val videoIndex = pair.second
-            var uri = Uri.EMPTY
-            if (listIndex < videoGroups.value.size && videoIndex < videoGroups.value[listIndex].videos.size) {
-                uri = videoGroups.value[listIndex].videos[videoIndex].uri
-            }
-            uri
-        }
-        return list
+        shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, selectedUris)
+        return shareIntent
     }
 
     fun moveToTrashSelectedVideos(
-        context: Context,
-        trashLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
+            context: Context,
+            trashLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
     ) {
         val contentResolver = context.contentResolver
         viewModelScope.launch(Dispatchers.Default) {
-            val selectedImages = getSelectedVideos()
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                selectedImages.forEach {
-                    contentResolver.delete(it!!, null, null)
-                }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                selectedImages.forEach {
-                    contentResolver.delete(it!!, null, null)
-                }
-            } else {
-                val intentSender = MediaStore.createTrashRequest(
-                    contentResolver,
-                    selectedImages,
-                    true
-                ).intentSender
-                trashLauncher.launch(
-                    intentSender.let { IntentSenderRequest.Builder(it).build() }
-                )
+            val selectedUris = mutableListOf<Uri>()
+            selectedVideoList.value.forEach { (_, pair) ->
+                _videoGroups.value[pair.first].videos[pair.second].uri?.let { selectedUris.add(it) }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val intentSender =
+                        MediaStore.createTrashRequest(contentResolver, selectedUris, true)
+                                .intentSender
+                trashLauncher.launch(intentSender.let { IntentSenderRequest.Builder(it).build() })
             }
         }
     }
@@ -223,47 +146,54 @@ class VideoViewModel @Inject constructor(
             val listMap = mutableMapOf<Int, MutableList<Int>>()
             selectedVideoList.value.forEach { item ->
                 val listIndex = item.value.first
-                val videoIndex = item.value.second
+                val imageIndex = item.value.second
                 if (listMap.containsKey(listIndex)) {
-                    listMap[listIndex]?.add(videoIndex)
-                } else listMap[listIndex] = mutableListOf(videoIndex)
+                    listMap[listIndex]?.add(imageIndex)
+                } else listMap[listIndex] = mutableListOf(imageIndex)
             }
             listMap.forEach { item ->
                 val indicesToRemove = item.value
                 val listIndex = item.key
-                if (videoGroups.value.size > listIndex) {
+                if (_videoGroups.value.size > listIndex) {
                     val filteredList =
-                        videoGroups.value[listIndex].videos.filterIndexed { index, _ -> index !in indicesToRemove }
-                    videoGroups.value[listIndex].videos.clear()
-                    videoGroups.value[listIndex].videos.addAll(filteredList)
+                            _videoGroups.value[listIndex].videos.filterIndexed { index, _ ->
+                                index !in indicesToRemove
+                            }
+                    _videoGroups.value[listIndex].videos.clear()
+                    _videoGroups.value[listIndex].videos.addAll(filteredList)
                 }
             }
-            videoGroups.value =
-                videoGroups.value.filter { item -> item.videos.size != 0 }.toMutableList()
+            _videoGroups.value =
+                    _videoGroups
+                            .value
+                            .filterIndexed { _, item -> item.videos.size != 0 }
+                            .toMutableList()
             selectedVideoList.value.clear()
             selectedVideos.value = 0
+            // FIX: Toast must be called on Main thread
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
         }
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     fun getData(applicationContext: Context) {
-        // if permission is granted, load the images
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(
-                    applicationContext,
-                    android.Manifest.permission.READ_MEDIA_VIDEO
-                ) == PackageManager.PERMISSION_GRANTED
+                            applicationContext,
+                            android.Manifest.permission.READ_MEDIA_VIDEO
+                    ) == PackageManager.PERMISSION_GRANTED
             ) {
-                if (videoGroups.value.isEmpty()) addVideosGroupedByDate(applicationContext)
+                if (_videoGroups.value.isEmpty()) addVideosGroupedByDate(applicationContext)
                 else loadVideos(applicationContext)
             }
         } else {
             if (ActivityCompat.checkSelfPermission(
-                    applicationContext,
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
+                            applicationContext,
+                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
             ) {
-                if (videoGroups.value.isEmpty()) addVideosGroupedByDate(applicationContext)
+                if (_videoGroups.value.isEmpty()) addVideosGroupedByDate(applicationContext)
                 else loadVideos(applicationContext)
             }
         }
@@ -276,17 +206,17 @@ class VideoViewModel @Inject constructor(
     fun deleteSelected(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val selectedVideos = getSelectedVideos()
-                selectedVideos.forEach {
-                    if (it != null) {
-                        context.contentResolver.delete(it, null, null)
+                val selectedUris = mutableListOf<Uri>()
+                selectedVideoList.value.forEach { (_, pair) ->
+                    _videoGroups.value[pair.first].videos[pair.second].uri?.let {
+                        selectedUris.add(it)
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+                selectedUris.forEach { uri -> context.contentResolver.delete(uri, null, null) }
+            } catch (exception: Exception) {
+                exception.printStackTrace()
             }
         }
         removeVideosFromList(context, "Deleted")
     }
 }
-

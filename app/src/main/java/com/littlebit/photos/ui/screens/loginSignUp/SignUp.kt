@@ -39,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,99 +49,103 @@ import com.littlebit.photos.ui.navigation.Screens
 @SuppressLint("SourceLockedOrientationActivity")
 @Composable
 fun SignUpScreen(navHostController: NavHostController) {
-    val statusBarHeightDp = with(LocalDensity.current) {
-        WindowInsets.statusBars.getTop(this).toDp()
-    }
-    val activity = LocalContext.current as ComponentActivity
+    val statusBarHeightDp =
+            with(LocalDensity.current) { WindowInsets.statusBars.getTop(this).toDp() }
+    val activity = androidx.activity.compose.LocalActivity.current as ComponentActivity
     var initialOrientation by remember { mutableIntStateOf(activity.requestedOrientation) }
     LaunchedEffect(Unit) {
         initialOrientation = activity.requestedOrientation
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     }
-    DisposableEffect(Unit) {
-        onDispose {
-            activity.requestedOrientation = initialOrientation
-        }
-    }
+    DisposableEffect(Unit) { onDispose { activity.requestedOrientation = initialOrientation } }
 
     Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()), horizontalAlignment =  Alignment.CenterHorizontally) {
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.35f)
-                .clip(RoundedCornerShape(bottomEnd = 100.dp, bottomStart = 0.dp))
-                .background(Color.Blue.copy(0.5f))
-                .padding(top = statusBarHeightDp),
-            contentAlignment = Alignment.Center
-
+                modifier =
+                        Modifier.fillMaxWidth()
+                                .fillMaxHeight(0.35f)
+                                .clip(RoundedCornerShape(bottomEnd = 100.dp, bottomStart = 0.dp))
+                                .background(Color.Blue.copy(0.5f))
+                                .padding(top = statusBarHeightDp),
+                contentAlignment = Alignment.Center
         ) {
-            Text(text = "Sign Up", fontSize = 32.sp, letterSpacing = 4.sp, fontWeight = FontWeight.Medium)
+            Text(
+                    text = "Sign Up",
+                    fontSize = 32.sp,
+                    letterSpacing = 4.sp,
+                    fontWeight = FontWeight.Medium
+            )
             Spacer(Modifier.height(150.dp))
         }
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "First Name") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "First Name") },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "Last Name") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "Last Name") },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "Email") },
-            leadingIcon = { Icon(imageVector = Icons.Outlined.Email, contentDescription = "Email Icon") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "Email") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Outlined.Email, contentDescription = "Email Icon")
+                },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "Password") },
-            leadingIcon = { Icon(imageVector = Icons.Outlined.Lock, contentDescription = "Password Icon") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "Password") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Outlined.Lock, contentDescription = "Password Icon")
+                },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            value = "",
-            onValueChange = { },
-            label = { Text(text = "Confirm Password") },
-            leadingIcon = { Icon(imageVector = Icons.Outlined.Lock, contentDescription = "Password Icon") },
-            shape = RoundedCornerShape(10.dp)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                value = "",
+                onValueChange = {},
+                label = { Text(text = "Confirm Password") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Outlined.Lock, contentDescription = "Password Icon")
+                },
+                shape = RoundedCornerShape(10.dp)
         )
         Spacer(Modifier.height(20.dp))
         ElevatedButton(
-            onClick = {},
-            modifier = Modifier.fillMaxWidth(0.7f),
-            colors = ButtonDefaults.buttonColors().copy(containerColor = Color.Blue.copy(0.5f)),
-        ) {
-            Text("Sign Up")
-        }
+                onClick = {},
+                modifier = Modifier.fillMaxWidth(0.7f),
+                colors = ButtonDefaults.buttonColors().copy(containerColor = Color.Blue.copy(0.5f)),
+        ) { Text("Sign Up") }
         Spacer(Modifier.height(40.dp))
         Text(
-            text = "Already have any account? Sign in",
-            letterSpacing = 1.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(0.7f),
-            modifier = Modifier.clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = { navHostController.navigate(Screens.LoginScreen.route) }
-            )
+                text = "Already have any account? Sign in",
+                letterSpacing = 1.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(0.7f),
+                modifier =
+                        Modifier.clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = { navHostController.navigate(Screens.LoginScreen.route) }
+                        )
         )
     }
 }

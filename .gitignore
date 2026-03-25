@@ -1,15 +1,88 @@
-*.iml
-.gradle
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+output-metadata.json
+
+# Files for the Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+
+# Gradle files
+.gradle/
+build/
+app/build/
+!gradle-wrapper.jar
+
+# Local configuration file (sdk path, etc)
+local.properties
 /local.properties
+
+# Log/OS Files
+*.log
+
+# Android Studio generated files and folders
+captures/
+/captures
+.externalNativeBuild/
+.cxx/
+
+# IntelliJ IDEA
+*.iml
+.idea/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# Keystore files
+*.jks
+*.keystore
+*.p12
+*.key
+*.pepk
+
+# Google Services (e.g. APIs or Firebase)
+google-services.json
+
+# Android Profiling
+*.hprof
+
+# Kotlin
+.kotlin/
+.kotlin_module
+
+# NDK
+obj/
+
+# macOS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Linux
+*~
+.directory
+
+# Testing and Coverage
+*.exec
+*.html
+*.xml
+*.csv

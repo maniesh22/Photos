@@ -99,7 +99,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.bumptech.glide.integration.compose.CrossFade
+
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.littlebit.photos.model.ImageGroup
@@ -190,7 +190,7 @@ fun ImageItem(
                     )
                 },
             contentScale = contentScale,
-            transition = CrossFade,
+
         )
         val icon = if (image.isSelected) Icons.Filled.CheckCircle else Icons.Outlined.Circle
         val tint = if (selectedImages > 0) {

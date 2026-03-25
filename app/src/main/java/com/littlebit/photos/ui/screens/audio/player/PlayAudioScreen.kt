@@ -2,7 +2,7 @@
 
 package com.littlebit.photos.ui.screens.audio.player
 
-
+import android.content.ContentUris
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
@@ -11,7 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -74,8 +73,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -87,7 +85,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import androidx.palette.graphics.Palette
+import coil.compose.AsyncImage
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.littlebit.photos.model.AudioItem
 import com.littlebit.photos.ui.screens.audio.AudioViewModel
@@ -98,15 +96,13 @@ import com.littlebit.photos.ui.screens.videos.grid.isLandscape
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun PlayAudioScreen(
-    playAudioViewModel: PlayAudioViewModel,
-    audioViewModel: AudioViewModel,
-    audioFileIndex: Int,
-    navController: NavHostController,
+        playAudioViewModel: PlayAudioViewModel,
+        audioViewModel: AudioViewModel,
+        audioFileIndex: Int,
+        navController: NavHostController,
 ) {
     val audioList = audioViewModel.audioList.collectAsStateWithLifecycle().value
-    val currentIndex = rememberSaveable {
-        mutableIntStateOf(audioFileIndex)
-    }
+    val currentIndex = rememberSaveable { mutableIntStateOf(audioFileIndex) }
     val audioFile = audioList[audioFileIndex]
     val uri = audioFile.uri
     val context = LocalContext.current
@@ -120,13 +116,11 @@ fun PlayAudioScreen(
         if (state == PlaybackState.IDLE) {
             Log.d("INSIDE_LAUNCHED_EFFECT_IDLE", "PlayAudioScreen: $state")
             playAudioViewModel.play(uri, context)
-        }
-        else if(state == PlaybackState.STOP){
+        } else if (state == PlaybackState.STOP) {
             Log.d("INSIDE_LAUNCHED_EFFECT_STOP", "PlayAudioScreen: $state")
             playAudioViewModel.playNext(audioList, currentIndex, context, false)
         }
     }
-
 
     BackHandler {
         playAudioViewModel.isLooping.value = false
@@ -138,53 +132,47 @@ fun PlayAudioScreen(
     }
 }
 
-
 @Composable
 fun XPlayerScreen(
-    playAudioViewModel: PlayAudioViewModel,
-    audioViewModel: AudioViewModel,
-    audioList: MutableList<AudioItem>,
-    navController: NavHostController,
-    currentIndex: MutableIntState
+        playAudioViewModel: PlayAudioViewModel,
+        audioViewModel: AudioViewModel,
+        audioList: MutableList<AudioItem>,
+        navController: NavHostController,
+        currentIndex: MutableIntState
 ) {
 
-    val audioThumbNail = audioList[currentIndex.intValue].thumbNail
+    val currentAudio = audioList[currentIndex.intValue]
+    val albumArtUri =
+            if (currentAudio.albumId != 0L) {
+                ContentUris.withAppendedId(
+                        android.net.Uri.parse("content://media/external/audio/albumart"),
+                        currentAudio.albumId
+                )
+            } else null
     val progress = playAudioViewModel.playbackProgress.collectAsStateWithLifecycle()
-    val dominantColor =
-        if (audioList[currentIndex.intValue].thumbNail != null) getDominantColor(audioList[currentIndex.intValue].thumbNail) else {
-            Color.Magenta.copy(0.7f)
-        }
-    val backGroundColor = listOf(
-        Color.Black.copy(0.9f),
-        dominantColor,
-        Color.Black.copy(0.9f)
-    )
+    val dominantColor = Color.Magenta.copy(0.7f)
+    val backGroundColor = listOf(Color.Black.copy(0.9f), dominantColor, Color.Black.copy(0.9f))
     Surface {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(backGroundColor))
-        ) {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(backGroundColor))) {
             Column(
-                Modifier
-                    .padding(WindowInsets.systemBars.asPaddingValues()),
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.CenterHorizontally
+                    Modifier.padding(WindowInsets.systemBars.asPaddingValues()),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 XPlayerTopBar(
-                    Modifier,
-                    navController,
-                    playAudioViewModel,
-                    audioList[currentIndex.intValue],
-                    audioViewModel
+                        Modifier,
+                        navController,
+                        playAudioViewModel,
+                        audioList[currentIndex.intValue],
+                        audioViewModel
                 )
-                AudioThumbNail(audioThumbNail)
+                AudioThumbNail(albumArtUri)
                 MarqueeText(text = audioList[currentIndex.intValue].displayName)
                 SliderWithTimer(
-                    progress.value,
-                    playAudioViewModel.getDuration(),
-                    timeDuration = playAudioViewModel.getTimeDuration(),
-                    currentTime = playAudioViewModel.getCurrentTimeDuration()
+                        progress.value,
+                        playAudioViewModel.getDuration(),
+                        timeDuration = playAudioViewModel.getTimeDuration(),
+                        currentTime = playAudioViewModel.getCurrentTimeDuration()
                 ) {
                     playAudioViewModel.run {
                         setPlayBackState(PlaybackState.SEEKING)
@@ -196,109 +184,80 @@ fun XPlayerScreen(
             }
         }
     }
-
 }
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MarqueeText(text: String) {
     val focusRequester = remember { FocusRequester() }
-    val interactionSource = remember {
-        MutableInteractionSource()
-    }
+    val interactionSource = remember { MutableInteractionSource() }
     Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 14.dp, end = 14.dp)
-            .basicMarquee(animationMode = MarqueeAnimationMode.WhileFocused)
-            .focusRequester(focusRequester)
-            .focusable()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { focusRequester.requestFocus() },
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Visible
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            modifier =
+                    Modifier.fillMaxWidth()
+                            .padding(start = 14.dp, end = 14.dp)
+                            .basicMarquee(animationMode = MarqueeAnimationMode.WhileFocused)
+                            .focusRequester(focusRequester)
+                            .focusable()
+                            .clickable(interactionSource = interactionSource, indication = null) {
+                                focusRequester.requestFocus()
+                            },
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Visible
     )
 }
 
-
-fun getDominantColor(audioThumbNail: ImageBitmap?): Color {
-    // Use the LaunchedEffect to extract the dominant color when the image is loaded
-    var dominantColor = Color.Transparent
-    if (audioThumbNail != null) {
-        val palette = Palette.Builder(audioThumbNail.asAndroidBitmap()).generate()
-        val dominantSwatch = palette.dominantSwatch
-        dominantColor = dominantSwatch?.rgb?.let {
-            Color(
-                red = (it shr 16 and 0xFF) / 255.0f,
-                green = (it shr 8 and 0xFF) / 255.0f,
-                blue = (it and 0xFF) / 255.0f
-            )
-        } ?: Color.Transparent
-    }
-
-    return dominantColor
+fun getDominantColor(): Color {
+    return Color.Magenta.copy(0.7f)
 }
-
 
 @Composable
 fun AudioThumbNail(
-    audioThumbNail: ImageBitmap?,
+        albumArtUri: android.net.Uri?,
 ) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .padding(start = 12.dp, end = 12.dp)
-    ) {
-        if (audioThumbNail == null) {
+    Box(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp)) {
+        if (albumArtUri == null) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(if (isLandscape()) 0.5f else 0.7f)
-                    .clip(MaterialTheme.shapes.extraLarge)
-                    .background(Color.White.copy(0.4f))
+                    modifier =
+                            Modifier.fillMaxWidth()
+                                    .fillMaxHeight(if (isLandscape()) 0.5f else 0.7f)
+                                    .clip(MaterialTheme.shapes.extraLarge)
+                                    .background(Color.White.copy(0.4f))
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Audiotrack,
-                    contentDescription = "Audio Track",
-                    modifier = Modifier
-                        .size(200.dp)
-                        .align(Alignment.Center),
-                    tint = Color.Magenta.copy(0.7f)
+                        imageVector = Icons.Outlined.Audiotrack,
+                        contentDescription = "Audio Track",
+                        modifier = Modifier.size(200.dp).align(Alignment.Center),
+                        tint = Color.Magenta.copy(0.7f)
                 )
             }
         } else {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(if (isLandscape()) 0.5f else 0.7f)
-                    .clip(MaterialTheme.shapes.extraLarge)
-                    .background(Color.White.copy(0.1f)),
-                contentAlignment = Alignment.Center
+                    modifier =
+                            Modifier.fillMaxWidth()
+                                    .fillMaxHeight(if (isLandscape()) 0.5f else 0.7f)
+                                    .clip(MaterialTheme.shapes.extraLarge)
+                                    .background(Color.White.copy(0.1f)),
+                    contentAlignment = Alignment.Center
             ) {
-                Image(
-                    bitmap = audioThumbNail,
-                    contentDescription = "Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.6f),
+                AsyncImage(
+                        model = albumArtUri,
+                        contentDescription = "Album Art",
+                        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.6f),
+                        contentScale = ContentScale.Fit
                 )
             }
         }
     }
 }
 
-
 @Composable
 fun PlayBackController(
-    playAudioViewModel: PlayAudioViewModel,
-    audioViewModel: AudioViewModel,
-    currentIndex: MutableIntState,
+        playAudioViewModel: PlayAudioViewModel,
+        audioViewModel: AudioViewModel,
+        currentIndex: MutableIntState,
 ) {
     val state by playAudioViewModel.playbackState.collectAsStateWithLifecycle()
     val isLooping by playAudioViewModel.isLooping.collectAsStateWithLifecycle()
@@ -307,153 +266,154 @@ fun PlayBackController(
     val audioList by audioViewModel.audioList.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val playPauseIcon =
-        if (state == PlaybackState.IDLE || state == PlaybackState.PAUSED || state == PlaybackState.STOP || state == PlaybackState.COMPLETED ) Icons.Filled.PlayCircle else Icons.Filled.PauseCircle
+            if (state == PlaybackState.IDLE ||
+                            state == PlaybackState.PAUSED ||
+                            state == PlaybackState.STOP ||
+                            state == PlaybackState.COMPLETED
+            )
+                    Icons.Filled.PlayCircle
+            else Icons.Filled.PauseCircle
     val repeatIcon =
-         if (isListLooping) Icons.Outlined.RepeatOn else if (isLooping) Icons.Outlined.RepeatOne else Icons.Outlined.Repeat
+            if (isListLooping) Icons.Outlined.RepeatOn
+            else if (isLooping) Icons.Outlined.RepeatOne else Icons.Outlined.Repeat
     val shuffleIcon = if (isShuffling) Icons.Outlined.ShuffleOn else Icons.Outlined.Shuffle
     Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(4.dp), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+            Modifier.fillMaxWidth().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
     ) {
-        IconButton(onClick = {
-            playAudioViewModel.isShuffling.value = !playAudioViewModel.isShuffling.value
-        }, modifier = Modifier.size(70.dp)) {
+        IconButton(
+                onClick = {
+                    playAudioViewModel.isShuffling.value = !playAudioViewModel.isShuffling.value
+                },
+                modifier = Modifier.size(70.dp)
+        ) {
             Icon(
-                imageVector = shuffleIcon,
-                contentDescription = "Shuffle Button",
-                modifier = Modifier.size(25.dp)
-            )
-        }
-
-        IconButton(onClick = {
-            playAudioViewModel.playPrevious(audioList, currentIndex, context)
-        }, modifier = Modifier.size(50.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.SkipPrevious,
-                contentDescription = "Skip Previous",
-                modifier = Modifier.size(45.dp)
+                    imageVector = shuffleIcon,
+                    contentDescription = "Shuffle Button",
+                    modifier = Modifier.size(25.dp)
             )
         }
 
         IconButton(
-            onClick = {
-                if (state == PlaybackState.PLAYING) {
-                    playAudioViewModel.pause()
-                } else {
-                    playAudioViewModel.resume()
-                }
-            },
-            modifier = Modifier.size(90.dp)
+                onClick = { playAudioViewModel.playPrevious(audioList, currentIndex, context) },
+                modifier = Modifier.size(50.dp)
         ) {
             Icon(
-                imageVector = playPauseIcon,
-                contentDescription = "Play Pause",
-                modifier = Modifier.size(60.dp)
+                    imageVector = Icons.Outlined.SkipPrevious,
+                    contentDescription = "Skip Previous",
+                    modifier = Modifier.size(45.dp)
             )
         }
 
-        IconButton(onClick = {
-            playAudioViewModel.playNext(audioList, currentIndex, context, true)
-        }, modifier = Modifier.size(50.dp)) {
+        IconButton(
+                onClick = {
+                    if (state == PlaybackState.PLAYING) {
+                        playAudioViewModel.pause()
+                    } else {
+                        playAudioViewModel.resume()
+                    }
+                },
+                modifier = Modifier.size(90.dp)
+        ) {
             Icon(
-                imageVector = Icons.Outlined.SkipNext,
-                contentDescription = "Skip Next",
-                modifier = Modifier.size(40.dp)
+                    imageVector = playPauseIcon,
+                    contentDescription = "Play Pause",
+                    modifier = Modifier.size(60.dp)
             )
         }
-        IconButton(onClick = {
-            playAudioViewModel.repeatCurrent()
-        }, modifier = Modifier.size(70.dp)) {
+
+        IconButton(
+                onClick = { playAudioViewModel.playNext(audioList, currentIndex, context, true) },
+                modifier = Modifier.size(50.dp)
+        ) {
             Icon(
-                imageVector = repeatIcon,
-                contentDescription = "Repeat Button",
-                modifier = Modifier.size(25.dp)
+                    imageVector = Icons.Outlined.SkipNext,
+                    contentDescription = "Skip Next",
+                    modifier = Modifier.size(40.dp)
+            )
+        }
+        IconButton(
+                onClick = { playAudioViewModel.repeatCurrent() },
+                modifier = Modifier.size(70.dp)
+        ) {
+            Icon(
+                    imageVector = repeatIcon,
+                    contentDescription = "Repeat Button",
+                    modifier = Modifier.size(25.dp)
             )
         }
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SliderWithTimer(
-    progress: Int,
-    range: Int = 5,
-    timeDuration: String,
-    currentTime: String,
-    onValueChange: (Int) -> Unit,
+        progress: Int,
+        range: Int = 5,
+        timeDuration: String,
+        currentTime: String,
+        onValueChange: (Int) -> Unit,
 ) {
-    val interactionSource = remember {
-        MutableInteractionSource()
-    }
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(start = 4.dp, end = 4.dp)
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 4.dp, end = 4.dp)
     ) {
         Text(text = currentTime, style = MaterialTheme.typography.bodySmall)
         Spacer(modifier = Modifier.width(4.dp))
         Slider(
-            value = progress.toFloat(),
-            onValueChange = { onValueChange(it.toInt()) },
-            valueRange = 0f..if (range > 0) range.toFloat() else 2f,
-            thumb = {
-                SliderDefaults.Thumb(
-                    interactionSource,
-                    colors = SliderDefaults.colors(thumbColor = Color.White),
-                    thumbSize = DpSize(17.dp, 17.dp)
-                )
-            },
-            track = {
-                SliderDefaults.Track(
-                    sliderState = it,
-                    colors = SliderDefaults.colors(activeTrackColor = Color.White),
-                    modifier = Modifier.fillMaxWidth((0.89).toFloat())
-                )
-            },
+                value = progress.toFloat(),
+                onValueChange = { onValueChange(it.toInt()) },
+                valueRange = 0f..if (range > 0) range.toFloat() else 2f,
+                thumb = {
+                    SliderDefaults.Thumb(
+                            interactionSource,
+                            colors = SliderDefaults.colors(thumbColor = Color.White),
+                            thumbSize = DpSize(17.dp, 17.dp)
+                    )
+                },
+                track = {
+                    SliderDefaults.Track(
+                            sliderState = it,
+                            colors = SliderDefaults.colors(activeTrackColor = Color.White),
+                            modifier = Modifier.fillMaxWidth((0.89).toFloat())
+                    )
+                },
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(text = timeDuration, style = MaterialTheme.typography.bodySmall)
     }
 }
 
-
 @Composable
 fun XPlayerTopBar(
-    modifier: Modifier = Modifier,
-    navController: NavHostController,
-    playAudioViewModel: PlayAudioViewModel,
-    audioItem: AudioItem,
-    audioViewModel: AudioViewModel
+        modifier: Modifier = Modifier,
+        navController: NavHostController,
+        playAudioViewModel: PlayAudioViewModel,
+        audioItem: AudioItem,
+        audioViewModel: AudioViewModel
 ) {
-    val showDropDownMenu = rememberSaveable {
-        mutableStateOf(false)
-    }
+    val showDropDownMenu = rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
-    Row(
-        modifier
-            .fillMaxWidth()
-            .padding(2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = {
-            playAudioViewModel.isLooping.value = false
-            playAudioViewModel.isListLooping.value = false
-            playAudioViewModel.pause()
-            playAudioViewModel.playbackProgress.value = 0
-            playAudioViewModel.setPlayBackState(PlaybackState.IDLE)
-            navController.popBackStack()
-        }) {
+    Row(modifier.fillMaxWidth().padding(2.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+                onClick = {
+                    playAudioViewModel.isLooping.value = false
+                    playAudioViewModel.isListLooping.value = false
+                    playAudioViewModel.pause()
+                    playAudioViewModel.playbackProgress.value = 0
+                    playAudioViewModel.setPlayBackState(PlaybackState.IDLE)
+                    navController.popBackStack()
+                }
+        ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Back Button"
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back Button"
             )
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = {
-            playAudioViewModel.shareIntent(context)
-        }) {
+        IconButton(onClick = { playAudioViewModel.shareIntent(context) }) {
             Icon(imageVector = Icons.Outlined.Share, contentDescription = "Share Button")
         }
         Spacer(modifier = Modifier.width(12.dp))
@@ -462,71 +422,59 @@ fun XPlayerTopBar(
             Icon(imageVector = Icons.Outlined.MoreVert, contentDescription = "More Options")
         }
     }
-
 }
 
 @Composable
 fun XPlayerTopBarMenu(
-    showDropDownMenu: MutableState<Boolean> = mutableStateOf(true),
-    audioItem: AudioItem,
-    audioViewModel: AudioViewModel
+        showDropDownMenu: MutableState<Boolean> = mutableStateOf(true),
+        audioItem: AudioItem,
+        audioViewModel: AudioViewModel
 ) {
     val context = LocalContext.current
-    var showFileInfo by remember {
-        mutableStateOf(false)
-    }
-    val file = remember {
-        mutableStateOf(audioItem)
-    }
-    val menuItems = listOf(
-        Pair("Open with") {
-            audioViewModel.openWith(audioItem, context)
-            showDropDownMenu.value = false
-        },
-        Pair("File info") {
-            showFileInfo = true
-            showDropDownMenu.value = false
-        },
-        Pair("Playback speed") {}
-    )
+    var showFileInfo by remember { mutableStateOf(false) }
+    val file = remember { mutableStateOf(audioItem) }
+    val menuItems =
+            listOf(
+                    Pair("Open with") {
+                        audioViewModel.openWith(audioItem, context)
+                        showDropDownMenu.value = false
+                    },
+                    Pair("File info") {
+                        showFileInfo = true
+                        showDropDownMenu.value = false
+                    },
+                    Pair("Playback speed") {}
+            )
 
     DropdownMenu(
-        expanded = showDropDownMenu.value,
-        onDismissRequest = { showDropDownMenu.value = false },
-        offset = DpOffset(0.dp, (-30).dp)
+            expanded = showDropDownMenu.value,
+            onDismissRequest = { showDropDownMenu.value = false },
+            offset = DpOffset(0.dp, (-30).dp)
     ) {
         menuItems.forEach { menuItem ->
             DropdownMenuItem(
-                text = { Text(text = menuItem.first) },
-                onClick = { menuItem.second.invoke() },
-                modifier = Modifier.padding(end = 50.dp, top = 5.dp)
+                    text = { Text(text = menuItem.first) },
+                    onClick = { menuItem.second.invoke() },
+                    modifier = Modifier.padding(end = 50.dp, top = 5.dp)
             )
         }
     }
 
     AnimatedVisibility(
-        showFileInfo,
-        enter = slideInVertically(initialOffsetY = { -it }, animationSpec = tween(900)),
-        exit = slideOutHorizontally()
+            showFileInfo,
+            enter = slideInVertically(initialOffsetY = { -it }, animationSpec = tween(900)),
+            exit = slideOutHorizontally()
     ) {
         Dialog(
-            onDismissRequest = { showFileInfo = false },
-            properties = DialogProperties(
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true,
-                SecureFlagPolicy.Inherit,
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = true
-            )
-        ) {
-            FileInfo(currentFile = file) {
-                showFileInfo = false
-            }
-        }
+                onDismissRequest = { showFileInfo = false },
+                properties =
+                        DialogProperties(
+                                dismissOnBackPress = true,
+                                dismissOnClickOutside = true,
+                                SecureFlagPolicy.Inherit,
+                                usePlatformDefaultWidth = false,
+                                decorFitsSystemWindows = true
+                        )
+        ) { FileInfo(currentFile = file) { showFileInfo = false } }
     }
 }
-
-
-
-
-
